@@ -77,6 +77,7 @@ module ibex_lockstep import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   input  logic [31:0]                  data_addr_i,
   input  logic [31:0]                  data_wdata_i,
   input  logic                         data_tag_i,
+  input  logic                         data_is_cap_access_i,
   input  logic [MemDataWidth-1:0]      data_rdata_i,
   input  logic                         data_rdata_tag_i,
   input  logic                         data_err_i,
@@ -363,6 +364,7 @@ module ibex_lockstep import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
     logic [31:0]             data_addr;
     logic [31:0]             data_wdata;
     logic                    data_tag;
+    logic                    data_is_cap_access;
     logic [IC_NUM_WAYS-1:0]  ic_tag_req;
     logic                    ic_tag_write;
     logic [IC_INDEX_W-1:0]   ic_tag_addr;
@@ -392,6 +394,7 @@ module ibex_lockstep import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   assign core_outputs_in.data_addr           = data_addr_i;
   assign core_outputs_in.data_wdata          = data_wdata_i;
   assign core_outputs_in.data_tag            = data_tag_i;
+  assign core_outputs_in.data_is_cap_access  = data_is_cap_access_i;
   assign core_outputs_in.ic_tag_req          = ic_tag_req_i;
   assign core_outputs_in.ic_tag_write        = ic_tag_write_i;
   assign core_outputs_in.ic_tag_addr         = ic_tag_addr_i;
@@ -509,6 +512,7 @@ module ibex_lockstep import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
     .data_addr_o         (shadow_outputs_d.data_addr),
     .data_wdata_o        (shadow_data_wdata_full),
     .data_tag_o          (shadow_outputs_d.data_tag),
+    .data_is_cap_access_o(shadow_outputs_d.data_is_cap_access),
     .data_rdata_i        (shadow_inputs_q[0].data_rdata),
     .data_tag_i          (shadow_inputs_q[0].data_rdata_tag),
     .data_err_i          (shadow_inputs_q[0].data_err),

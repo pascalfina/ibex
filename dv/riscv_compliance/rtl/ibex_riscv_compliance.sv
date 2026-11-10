@@ -205,6 +205,7 @@ module ibex_riscv_compliance (
       .data_wdata_o              (host_wdata[CoreD]    ),
       .data_wdata_intg_o         (                     ),
       .data_tag_o                (                     ),
+      .data_is_cap_access_o      (                     ),
       .data_rdata_i              (host_rdata[CoreD]    ),
       .data_rdata_intg_i         (ibex_data_rdata_intg ),
       .data_tag_i                (1'b0                 ),

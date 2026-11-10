@@ -99,6 +99,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   output logic [31:0]                                                  data_wdata_o,
   output logic [6:0]                                                   data_wdata_intg_o,
   output logic                                                         data_tag_o,
+  output logic                                                         data_is_cap_access_o,
   input  logic [31:0]                                                  data_rdata_i,
   input  logic [6:0]                                                   data_rdata_intg_i,
   input  logic                                                         data_tag_i,
@@ -264,6 +265,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   logic [31:0] trvk_wdata;
   logic [6:0]  trvk_wdata_intg;
   logic        trvk_wtag;
+  logic        trvk_is_cap_access;
   logic [31:0] trvk_rdata;
   logic [6:0]  trvk_rdata_intg;
   logic        trvk_rtag;
@@ -430,6 +432,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
     .data_addr_o  (trvk_addr),
     .data_wdata_o (data_wdata_core),
     .data_tag_o   (trvk_wtag),
+    .data_is_cap_access_o(trvk_is_cap_access),
     .data_rdata_i (data_rdata_core),
     .data_tag_i   (trvk_rtag),
     .data_err_i   (trvk_err),
@@ -894,6 +897,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
       trvk_addr,
       trvk_wdata,
       trvk_wtag,
+      trvk_is_cap_access,
       data_rdata_core,
       trvk_rtag,
       trvk_err,
@@ -947,6 +951,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
     logic [31:0]                  data_addr_local;
     logic [31:0]                  data_wdata_local;
     logic                         data_tag_local;
+    logic                         data_is_cap_access_local;
     logic [MemDataWidth-1:0]      data_rdata_local;
     logic                         data_rdata_tag_local;
     logic                         data_err_local;
@@ -1003,6 +1008,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
       trvk_addr,
       trvk_wdata,
       trvk_wtag,
+      trvk_is_cap_access,
       data_rdata_core,
       trvk_rtag,
       trvk_err,
@@ -1053,6 +1059,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
       data_addr_local,
       data_wdata_local,
       data_tag_local,
+      data_is_cap_access_local,
       data_rdata_local,
       data_rdata_tag_local,
       data_err_local,
@@ -1178,6 +1185,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
       .data_addr_i              (data_addr_local),
       .data_wdata_i             (data_wdata_local),
       .data_tag_i               (data_tag_local),
+      .data_is_cap_access_i     (data_is_cap_access_local),
       .data_rdata_i             (data_rdata_local),
       .data_rdata_tag_i         (data_rdata_tag_local),
       .data_err_i               (data_err_local),
@@ -1294,6 +1302,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
       .upstream_rdata_intg_o  (trvk_rdata_intg),
       .upstream_err_o         (trvk_err),
       .upstream_tag_i         (trvk_wtag),
+      .upstream_is_cap_access_i(trvk_is_cap_access),
       .upstream_tag_o         (trvk_rtag),
       .downstream_req_o       (data_req_o),
       .downstream_gnt_i       (data_gnt_i),
@@ -1307,6 +1316,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
       .downstream_rdata_intg_i(data_rdata_intg_i),
       .downstream_err_i       (data_err_i),
       .downstream_tag_o       (data_tag_o),
+      .downstream_is_cap_access_o(data_is_cap_access_o),
       .downstream_tag_i       (data_tag_i),
       .revbm_req_o            (trvk_revbm_req_o),
       .revbm_gnt_i            (trvk_revbm_gnt_i),
@@ -1326,6 +1336,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
     assign trvk_revbm_addr_o          = '0;
     assign trvk_rtag                  = 1'b0;
     assign data_tag_o                 = 1'b0;
+    assign data_is_cap_access_o       = 1'b0;
     assign trvk_revbm_data_intg_error = 1'b0;
     assign trvk_revbm_device_error    = 1'b0;
     assign unused_trvk = ^{
@@ -1336,6 +1347,7 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
       trvk_revbm_rdata_intg_i,
       trvk_revbm_err_i,
       trvk_wtag,
+      trvk_is_cap_access,
       data_tag_i
     };
 
@@ -1374,7 +1386,8 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
 
   `ASSERT_KNOWN(IbexDataReqX, data_req_o)
   `ASSERT_KNOWN_IF(IbexDataReqPayloadX,
-    {data_we_o, data_be_o, data_addr_o, data_wdata_o, data_wdata_intg_o, data_tag_o}, data_req_o)
+    {data_we_o, data_be_o, data_addr_o, data_wdata_o, data_wdata_intg_o, data_tag_o,
+     data_is_cap_access_o}, data_req_o)
 
   `ASSERT_KNOWN(IbexTrvkRevbmReqX, trvk_revbm_req_o)
   `ASSERT_KNOWN_IF(IbexTrvkRevbmReqPayloadX, trvk_revbm_addr_o, trvk_revbm_req_o)

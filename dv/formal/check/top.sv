@@ -150,6 +150,7 @@ default clocking @(posedge clk_i); endclocking
 ibex_mubi_t  cheriot_enable_i;
 logic [31:0] trvk_heap_base_addr_i;
 logic        data_tag_o;
+logic        data_is_cap_access_o;
 logic        data_tag_i;
 logic        trvk_revbm_req_o;
 logic        trvk_revbm_gnt_i;

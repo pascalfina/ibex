@@ -83,6 +83,7 @@ module ibex_core import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   output logic [31:0]                  data_addr_o,
   output logic [MemDataWidth-1:0]      data_wdata_o,
   output logic                         data_tag_o,
+  output logic                         data_is_cap_access_o,
   input  logic [MemDataWidth-1:0]      data_rdata_i,
   input  logic                         data_tag_i,
   input  logic                         data_err_i,
@@ -1081,6 +1082,7 @@ module ibex_core import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
     .data_be_o        (data_be_o),
     .data_wdata_o     (data_wdata_o),
     .data_tag_o       (data_tag_o),
+    .data_is_cap_access_o(data_is_cap_access_o),
     .data_rdata_i     (data_rdata_i),
     .data_tag_i       (data_tag_i),
 

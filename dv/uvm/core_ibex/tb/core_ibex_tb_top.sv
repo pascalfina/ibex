@@ -160,6 +160,7 @@ module core_ibex_tb_top;
     .data_wdata_o              (data_mem_vif.wdata         ),
     .data_wdata_intg_o         (data_mem_vif.wintg         ),
     .data_tag_o                (                           ),
+    .data_is_cap_access_o      (                           ),
     .data_err_i                (data_mem_vif.error         ),
 
     .trvk_revbm_req_o          (                           ),

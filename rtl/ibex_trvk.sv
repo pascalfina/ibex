@@ -35,6 +35,7 @@ module ibex_trvk #(
   output logic [6:0]  upstream_rdata_intg_o,
   output logic        upstream_err_o,
   input  logic        upstream_tag_i,
+  input  logic        upstream_is_cap_access_i,
   output logic        upstream_tag_o,
 
   // Downstream port
@@ -50,6 +51,7 @@ module ibex_trvk #(
   input  logic [6:0]  downstream_rdata_intg_i,
   input  logic        downstream_err_i,
   output logic        downstream_tag_o,
+  output logic        downstream_is_cap_access_o,
   input  logic        downstream_tag_i,
 
   // Revocation bitmap memory port
@@ -184,6 +186,7 @@ module ibex_trvk #(
   assign downstream_addr_o       = upstream_addr_i;
   assign downstream_wdata_o      = upstream_wdata_i;
   assign downstream_wdata_intg_o = upstream_wdata_intg_i;
+  assign downstream_is_cap_access_o = upstream_is_cap_access_i;
   assign upstream_rdata_o        = downstream_rsp_out.data;
   assign upstream_rdata_intg_o   = downstream_rsp_out.intg;
   assign upstream_err_o          = downstream_rsp_out.err;

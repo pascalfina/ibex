@@ -36,6 +36,7 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   output logic [3:0]              data_be_o,
   output logic [MemDataWidth-1:0] data_wdata_o,
   output logic                    data_tag_o,
+  output logic                    data_is_cap_access_o,
   input  logic [MemDataWidth-1:0] data_rdata_i,
   input  logic                    data_tag_i,
 
@@ -738,6 +739,10 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   end
 
   assign data_tag_o = data_wdata_tag;
+
+  // Request kind, independent of the stored capability's valid tag, for both words.
+  assign data_is_cap_access_o = (BaseIsa == BaseIsaRV32IorCHERIoT) &&
+                               (cheriot_enable_i == IbexMuBiOn) && lsu_is_cap_i;
 
   // output to ID stage: mtval + AGU for misaligned transactions
   assign addr_last_o = addr_last_q;
