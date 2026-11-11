@@ -24,6 +24,7 @@ sources:
       # Ibex packages
       - rtl/ibex_pkg.sv
       - rtl/ibex_cheriot_pkg.sv
+      - rtl/ibex_mem_ecc_pkg.sv
 
       # Generic primitive implementations
       - vendor/lowrisc_ip/ip/prim_generic/rtl/prim_and2.sv
