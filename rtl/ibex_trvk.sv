@@ -13,7 +13,7 @@ module ibex_trvk #(
   parameter int unsigned RevBitmapAddrWidth = 32'd11,
   // The base byte address of the meta SRAM holding the revocation bitmap
   parameter int unsigned RevBitmapBaseAddr  = 32'h0000_0000,
-  // Enable ECC checking on the revocation bitmap memory port
+  // Enable bitmap ECC checking and ECC adjustment for revoked response tags
   parameter bit          MemECC             = 1'b1
 )(
   input  logic clk_i,
@@ -188,7 +188,6 @@ module ibex_trvk #(
   assign downstream_wdata_intg_o = upstream_wdata_intg_i;
   assign downstream_is_cap_access_o = upstream_is_cap_access_i;
   assign upstream_rdata_o        = downstream_rsp_out.data;
-  assign upstream_rdata_intg_o   = downstream_rsp_out.intg;
   assign upstream_err_o          = downstream_rsp_out.err;
 
   // Forward upstream to downstream CHERIoT tag without changes
@@ -196,6 +195,15 @@ module ibex_trvk #(
 
   // Tag handling; always return tag except if we do a revocation bitmap lookup
   assign upstream_tag_o = (revbm_rvalid_i ? !revbm_revoked : 1'b1) & downstream_rsp_out.tag;
+
+  if (MemECC) begin : gen_response_tag_ecc
+    // Apply only the tag delta so existing integrity errors retain their syndrome.
+    assign upstream_rdata_intg_o = downstream_rsp_out.intg ^
+        ({7{downstream_rsp_out.tag ^ upstream_tag_o}} &
+         ibex_mem_ecc_pkg::MemEccTagSyndrome);
+  end else begin : gen_no_response_tag_ecc
+    assign upstream_rdata_intg_o = downstream_rsp_out.intg;
+  end
 
   // 64-bit alignment store
   prim_fifo_sync #(

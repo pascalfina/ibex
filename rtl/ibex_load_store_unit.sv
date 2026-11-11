@@ -112,7 +112,7 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
                                                           // part of a misaligned access
   logic         pmp_err_q, pmp_err_d;
   logic         lsu_err_q, lsu_err_d;
-  logic         data_intg_err, data_or_pmp_err;
+  logic         data_intg_err, data_resp_intg_err, data_or_pmp_err;
 
   logic         resp_is_cap_q;
   logic         cheriot_err_d, cheriot_err_q;
@@ -125,6 +125,7 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   cap_rx_fsm_t  cap_rx_fsm_q, cap_rx_fsm_d;
 
   logic         cap_lsw_err_q;
+  logic         cap_lsw_intg_err_q;
   logic [31:0]  cap_lsw_data_q;
   logic         cap_lsw_tag_q;
 
@@ -375,23 +376,18 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
 
   // SEC_CM: BUS.INTEGRITY
   if (MemECC) begin : g_mem_rdata_ecc
-    logic [1:0] ecc_err;
-    logic [MemDataWidth-1:0] data_rdata_buf;
+    logic [39:0] data_rdata_buf;
+    ibex_mem_ecc_pkg::mem_ecc_dec_t decoded_word;
 
-    prim_buf #(.Width(MemDataWidth)) u_prim_buf_instr_rdata (
-      .in_i (data_rdata_i),
+    prim_buf #(.Width(40)) u_prim_buf_instr_rdata (
+      .in_i ({data_rdata_i[MemDataWidth-1:32], data_tag_i, data_rdata_i[31:0]}),
       .out_o(data_rdata_buf)
     );
 
-    prim_secded_inv_39_32_dec u_data_intg_dec (
-      .data_i     (data_rdata_buf),
-      .data_o     (),
-      .syndrome_o (),
-      .err_o      (ecc_err)
-    );
+    assign decoded_word = ibex_mem_ecc_pkg::mem_ecc_decode(data_rdata_buf);
 
     // Don't care if error is correctable or not, they're all treated the same
-    assign data_intg_err = |ecc_err;
+    assign data_intg_err = |decoded_word.err;
   end else begin : g_no_mem_data_ecc
     assign data_intg_err = 1'b0;
   end
@@ -645,6 +641,7 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
       cheriot_err_q       <= 1'b0;
       cap_rx_fsm_q        <= CRX_IDLE;
       cap_lsw_err_q       <= 1'b0;
+      cap_lsw_intg_err_q  <= 1'b0;
       cap_lsw_data_q      <= '0;
       cap_lsw_tag_q       <= 1'b0;
     end else begin
@@ -676,6 +673,7 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
       if ((BaseIsa == BaseIsaRV32IorCHERIoT) & (cheriot_enable_i == IbexMuBiOn) &&
           (cap_rx_fsm_q == CRX_WAIT_RESP1) && data_rvalid_i) begin
         cap_lsw_err_q <= data_bus_err_i;
+        cap_lsw_intg_err_q <= data_intg_err;
       end
 
     end
@@ -686,6 +684,12 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   /////////////
 
   logic all_resp;
+  // Preserve first-half integrity failures through the final capability response.
+  assign data_resp_intg_err = data_intg_err |
+                              ((BaseIsa == BaseIsaRV32IorCHERIoT) &&
+                               (cheriot_enable_i == IbexMuBiOn) && resp_is_cap_q &&
+                               (cap_rx_fsm_q == CRX_WAIT_RESP2) && cap_lsw_intg_err_q);
+
   assign data_or_pmp_err    = lsu_err_q | data_bus_err_i | pmp_err_q |
                               ((cheriot_enable_i == IbexMuBiOn) &
                                (cheriot_err_q | (resp_is_cap_q & cap_lsw_err_q)));
@@ -696,7 +700,7 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
 
   // this goes to wb as rf_we_lsu, so needs to be gated when data needs to go back to EX
   assign lsu_rdata_valid_o  = (ls_fsm_cs == IDLE) & data_rvalid_i & ~data_or_pmp_err & ~data_we_q &
-                              ~data_intg_err;
+                              ~data_resp_intg_err;
 
   // output to register file
   if (BaseIsa == BaseIsaRV32IorCHERIoT) begin : gen_memcap_rd
@@ -704,7 +708,7 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
                          cap_lsw_data_q : data_rdata_ext;
     assign lsu_rcap_o  = ((cheriot_enable_i == IbexMuBiOn) && resp_is_cap_q &&
                           data_rvalid_i && (cap_rx_fsm_q == CRX_WAIT_RESP2) &&
-                          (~data_or_pmp_err)) ?
+                          (~data_or_pmp_err) && (~data_resp_intg_err)) ?
                          cheriot_mem_to_cap({data_tag_i, data_rdata_i[31:0]},
                              {cap_lsw_tag_q, cap_lsw_data_q}, resp_lc_clrperm_q) :
                          NULL_CAP;
@@ -730,10 +734,12 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
 
   // SEC_CM: BUS.INTEGRITY
   if (MemECC) begin : g_mem_wdata_ecc
-    prim_secded_inv_39_32_enc u_data_gen (
-      .data_i (data_wdata_data),
-      .data_o (data_wdata_o)
-    );
+    logic [39:0] encoded_word;
+
+    assign encoded_word = ibex_mem_ecc_pkg::mem_ecc_encode(
+        data_wdata_data, data_wdata_tag);
+
+    assign data_wdata_o = {encoded_word[39:33], encoded_word[31:0]};
   end else begin : g_no_mem_wdata_ecc
     assign data_wdata_o = data_wdata_data;
   end
@@ -758,8 +764,8 @@ module ibex_load_store_unit import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   // The data_intg_err signal is generated combinatorially from the incoming data_rdata_i. Were it
   // to be factored into load_err_o there would be a feedthrough path from data_rdata_i to
   // data_req_o which is undesirable.
-  assign load_resp_intg_err_o  = data_intg_err & data_rvalid_i & ~data_we_q;
-  assign store_resp_intg_err_o = data_intg_err & data_rvalid_i & data_we_q;
+  assign load_resp_intg_err_o  = data_resp_intg_err & data_rvalid_i & ~data_we_q;
+  assign store_resp_intg_err_o = data_resp_intg_err & data_rvalid_i & data_we_q;
 
   // Send to controller for mcause encoding.
   assign lsu_err_is_cheriot_o  = (cheriot_enable_i == IbexMuBiOn) & cheriot_err_q;
