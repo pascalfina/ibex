@@ -1624,20 +1624,17 @@ module ibex_top import ibex_pkg::*; import ibex_cheriot_pkg::*; #(
   `ASSERT(CrashDumpExceptionAddrConn,
     crash_dump_o.exception_addr === u_ibex_core.cs_registers_i.mtval_q)
 
-  // Explicit INC_ASSERT due to instantiation of prim_secded_inv_39_32_dec below that is only used
-  // by assertions
+  // Explicit INC_ASSERT because these integrity checks are used only by assertions.
   `ifdef INC_ASSERT
   if (MemECC) begin : g_mem_ecc_asserts
     logic [1:0] data_ecc_err, instr_ecc_err;
+    ibex_mem_ecc_pkg::mem_ecc_dec_t decoded_data;
 
     // Check alerts from memory integrity failures
 
-    prim_secded_inv_39_32_dec u_data_intg_dec (
-      .data_i     (data_rdata_core),
-      .data_o     (),
-      .syndrome_o (),
-      .err_o      (data_ecc_err)
-    );
+    assign decoded_data = ibex_mem_ecc_pkg::mem_ecc_decode(
+        {data_rdata_core[MemDataWidth-1:32], trvk_rtag, data_rdata_core[31:0]});
+    assign data_ecc_err = decoded_data.err;
     `ASSERT(MajorAlertOnDMemIntegrityErr,
       trvk_rvalid && (|data_ecc_err) |-> ##[0:5] alert_major_bus_o)
 
